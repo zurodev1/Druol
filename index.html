@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel WhatsApp Sender</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f1724;
+      color: #fff;
+      margin: 0; padding: 0;
+    }
+    header {
+      padding: 20px;
+      background: #1e293b;
+      text-align: center;
+    }
+    main {
+      max-width: 500px;
+      margin: 30px auto;
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    input, select, button, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border: none;
+      box-sizing: border-box;
+    }
+    button {
+      background: #7c3aed;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #loginForm, #sendForm {
+      transition: all .3s ease-in-out;
+    }
+    #sendForm {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Panel WhatsApp Sender</h1>
+    <p>Login Admin / Member</p>
+  </header>
+  <main>
+
+    <!-- Form login -->
+    <div id="loginForm">
+      <h2>Login</h2>
+      <input id="username" placeholder="Username">
+      <input id="password" placeholder="Password" type="password">
+      <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Form kirim pesan -->
+    <div id="sendForm">
+      <h2>Kirim Pesan</h2>
+      <input id="targetNumber" placeholder="Nomor Tujuan (62xxxx)">
+      <textarea id="messageText" placeholder="Pesan teks"></textarea>
+
+      <!-- Khusus admin -->
+      <div id="adminFields" style="display:none;">
+        <select id="payloadType">
+          <option value="text">Text</option>
+          <option value="template">Template</option>
+          <option value="list">List</option>
+        </select>
+        <button onclick="createMember()">+ Buat Akun Member</button>
+        <button onclick="createAdmin()">+ Buat Akun Admin</button>
+      </div>
+      <button onclick="sendMessage()">Kirim</button>
+    </div>
+
+  </main>
+
+  <script>
+    let token = null;
+    let role = null;
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      fetch('/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username,password})
+      })
+      .then(res=>res.json())
+      .then(data=>{
+        if(data.token){
+          token = data.token;
+          role = data.role;
+
+          // Sembunyikan form login
+          document.getElementById('loginForm').style.display='none';
+          // Tampilkan form kirim pesan
+          document.getElementById('sendForm').style.display='block';
+          // Jika admin tampilkan field admin
+          if(role==='admin'){
+            document.getElementById('adminFields').style.display='block';
+          }
+        } else {
+          alert('Login gagal');
+        }
+      })
+      .catch(err=>alert('Error koneksi: '+err));
+    }
+
+    function sendMessage() {
+      const number = document.getElementById('targetNumber').value;
+      const text = document.getElementById('messageText').value;
+      const payloadType = role==='admin'
+        ? document.getElementById('payloadType').value
+        : 'text';
+
+      fetch('/send', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({number,text,type:payloadType})
+      }).then(res=>res.json()).then(data=>{
+        alert(data.status||'Pesan terkirim');
+      });
+    }
+
+    function createMember(){
+      const newUser=prompt('Username member baru:');
+      const newPass=prompt('Password:');
+      if(!newUser||!newPass)return;
+      fetch('/createUser',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({username:newUser,password:newPass,role:'member'})
+      }).then(res=>res.json()).then(d=>alert(d.status));
+    }
+
+    function createAdmin(){
+      const newUser=prompt('Username admin baru:');
+      const newPass=prompt('Password:');
+      if(!newUser||!newPass)return;
+      fetch('/createUser',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({username:newUser,password:newPass,role:'admin'})
+      }).then(res=>res.json()).then(d=>alert(d.status));
+    }
+  </script>
+</body>
+</html>
